@@ -8,6 +8,6 @@ Maintainer: Christian Gunning <icos.atropa@gmail.com>
 Description: : A ragged array is a list of unequally sized vectors.  RaggedArray implements fast modification and replacement of ragged arrays via a pre-allocated matrix and automated tracking of free space.
 License: GPL 3
 Imports: methods, Rcpp (>= 0.11.2)
-LinkingTo: Rcpp
-Depends: Rcpp
+LinkingTo: Rcpp, RcppArmadillo
+Depends: Rcpp, RcppArmadillo
 RcppModules: mod_ragged
