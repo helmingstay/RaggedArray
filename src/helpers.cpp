@@ -1,7 +1,10 @@
-#include <Rcpp.h>
+// [[Rcpp::depends(RcppArmadillo)]]
 #include <Rmath.h>
+#include <RcppArmadillo.h>
 
 using namespace Rcpp ;
+// for user-supplied functions called by Xptr
+typedef void (*funcPtr)(arma::vec& x);
 
 class RaggedArray {
 private:
@@ -34,9 +37,108 @@ public:
         return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy);
     }
 
+    void sapply_cpp( SEXP funPtrfun ) {
+        // call user-defined c++ function that returns external pointer to function that modifies arma::vec
+        // requires function arg and ret dimensions match
+        int icol, thisLen;
+        // grab the external pointer
+        XPtr<funcPtr> xpfun(funPtrfun);
+        funcPtr fun = *xpfun;
+        for ( icol = 0; icol < nvec; icol++){
+            thisLen = lengths[icol];
+            // column proxy
+            NumericMatrix::Column dataCol = data(_, icol);
+            arma::vec dataVec(dataCol.begin(), thisLen,  false);
+            // apply function, cast back to arma 
+            // modifies in-place
+            fun(dataVec);
+        }
+    }
+    void sapply_cpp_alloc( SEXP funPtrfun ) {
+        // call user-defined c++ function that returns external pointer to function that modifies arma::vec
+        // reallocate version
+        int icol, thisLen, sizeNew;
+        XPtr<funcPtr> xpfun(funPtrfun);
+        funcPtr fun = *xpfun;
+        for ( icol = 0; icol < nvec; icol++){
+            thisLen = lengths[icol];
+            //NumericMatrix::Column dataCol = data(_, icol);
+            NumericMatrix::iterator colStart = data.begin() + (icol * allocLen);
+            // grab the range of data to operate on
+            // we allow strict = false, resize is ok
+            arma::vec dataNew(colStart, thisLen,  false, false);
+            // assign results to new vector and copy back
+            fun(dataNew);
+            // check size, grow as needed
+            sizeNew = dataNew.size();
+            if ( sizeNew > allocLen) {
+                grow(sizeNew);
+                // recompute offsets
+                colStart = data.begin() + (icol * allocLen);
+            }
+            if ( sizeNew < thisLen) {
+                // if results are shorter, zero out this row
+                // not necessary, but prevents confusion viewing $data
+                std::fill( colStart, colStart + allocLen, 0);
+            }
+            // fill row of return matrix, starting at first non-zero elem
+            std::copy( dataNew.begin(), dataNew.end(), colStart);
+            lengths[icol] = sizeNew;
+        }
+    }
+    void sapply( Function fun ) {
+        // call R function on each col
+        int icol, thisLen;
+        for ( icol = 0; icol < nvec; icol++){
+            thisLen = lengths[icol];
+            // column proxy
+            NumericMatrix::Column dataCol = data(_, icol);
+            arma::vec dataVec(dataCol.begin(), thisLen,  false);
+            // apply function, cast back to arma 
+            // modifies in-place
+            dataVec = as<arma::vec>(fun(dataVec));
+            // verify return dim
+            // arma takes care of this.
+            /* 
+            if ( dataVec.size() != thisLen ) {
+                throw std::range_error("In sapply(fun): function argument and return value must have equal lengths");
+            }
+            */
+        }
+    }
+
+    void sapply_alloc( Function fun ) {
+        // call R function on each col
+        int icol, thisLen, sizeNew;
+        for ( icol = 0; icol < nvec; icol++){
+            thisLen = lengths[icol];
+            //NumericMatrix::Column dataCol = data(_, icol);
+            NumericMatrix::iterator colStart = data.begin() + (icol * allocLen);
+            // grab the range of data to operate on
+            arma::vec dataVec(colStart, thisLen,  false);
+            // assign results to new vector and copy back
+            NumericVector dataNew = fun(dataVec);
+            // check size, grow as needed
+            sizeNew = dataNew.size();
+            if ( sizeNew > allocLen) {
+                grow(sizeNew);
+                // recompute offsets
+                colStart = data.begin() + (icol * allocLen);
+            }
+            if ( sizeNew < thisLen) {
+                // if results are shorter, zero out this row
+                // not necessary, but prevents confusion viewing $data
+                std::fill( colStart, colStart + allocLen, 0);
+            }
+            // fill row of return matrix, starting at first non-zero elem
+            std::copy( dataNew.begin(), dataNew.end(), colStart);
+            lengths[icol] = sizeNew;
+        }
+    }
+
     void append(  List fillVecs) {
         // "append" fill oldmat w/  
-        // we will loop through rows, filling retmat in with the vectors in list
+        // we will loop through cols, filling retmat in with the vectors in list
         // then update retmat_size to index the next free
         // newLenths isn't used, added for compatibility
         int sizeOld, sizeAdd, sizeNew;
@@ -45,29 +147,32 @@ public:
         if ( nvec != fillVecs.size()) {
             throw std::range_error("In append(): dimension mismatch");
         }
-        for (int ii = 0; ii<nvec; ii++){
+        for (int icol = 0; icol<nvec; icol++){
             // vector to append
-            fillTmp = fillVecs[ii];
+            fillTmp = fillVecs[icol];
             // compute lengths
-            sizeOld = lengths[ii];
+            sizeOld = lengths[icol];
             sizeAdd = fillTmp.size();
             sizeNew = sizeOld + sizeAdd;
             // grow data matrix as needed
-            if ( sizeNew >= allocLen) {
-                grow();
+            if ( sizeNew > allocLen) {
+                grow(sizeNew);
             }
-            // iterator for row to fill
-            NumericMatrix::Column dataCol = data(_, ii);
+            // iterator for col to fill
+            NumericMatrix::Column dataCol = data(_, icol);
             // fill row of return matrix, starting at first non-zero elem
             std::copy( fillTmp.begin(), fillTmp.end(), dataCol.begin() + sizeOld);
             // update size of retmat
-            lengths[ii] = sizeNew;
+            lengths[icol] = sizeNew;
         }
     }
 private:
-    void grow() {
+    void grow(int minLen) {
+        // always grow by a multiple of growBy
+        // always grow to at least minLen
         int end;
-        int newLen = allocLen+growBy;
+        int newLen = ceil( (float)minLen / (float)growBy) * growBy;
+        newLen = allocLen+growBy;
         // larger empty object to be filled
         NumericMatrix tmp(newLen, nvec);
         // fill by column

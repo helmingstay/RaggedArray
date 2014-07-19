@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Rcpp.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <Rcpp.h>
+#include <RcppArmadillo.h>
 #include "helpers.cpp"
 
 RCPP_MODULE(mod_ragged){
@@ -33,6 +33,10 @@ RCPP_MODULE(mod_ragged){
     .property("data", &RaggedArray::get_data, "Read-only: Numeric matrix of data.")
 
     .method("append", &RaggedArray::append , "Append a list of data vectors")
+    .method("sapply", &RaggedArray::sapply , "Apply function to each col of data, modify in-place.  Dim of function arg and return value must match")
+    .method("sapply_alloc", &RaggedArray::sapply_alloc , "Apply function to each col of data.  Reallocate, update lengths.")
+    .method("sapply_cpp", &RaggedArray::sapply_cpp , "Apply user-supplied c++ function to each col of data.  Dim of function arg and return value must match")
+    .method("sapply_cpp_alloc", &RaggedArray::sapply_cpp_alloc , "Apply user-supplied c++ function to each col of data.  Reallocate, update lengths")
     .method("serialize", &RaggedArray::serialize , "Return object as R list (which constructor will accept)")
     ;
 }
