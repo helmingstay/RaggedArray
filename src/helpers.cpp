@@ -9,8 +9,8 @@ typedef void (*funcPtr)(arma::vec& x);
 class RaggedArray {
 private:
     int nvec, allocLen;
-    IntegerVector lengths;
     NumericMatrix data;
+    IntegerVector lengths;
 public:
     int growBy;
     // getters
@@ -18,9 +18,10 @@ public:
     int get_nvec() { return nvec; }
     IntegerVector get_lengths() { return lengths; }
     NumericMatrix get_data() { return data; }
+    //
     // Constructors
     // construct empty obj
-    RaggedArray(int  nvec_, int allocLen_, int growBy_) : nvec(nvec_), allocLen(allocLen_), growBy(growBy_), data(allocLen, nvec), lengths(nvec){
+    RaggedArray(int  nvec_, int allocLen_, int growBy_) : nvec(nvec_), allocLen(allocLen_), data(allocLen, nvec), lengths(nvec), growBy(growBy_){
     }
     // construct obj from R List as returned by method asList()
     RaggedArray (List fromList) {
@@ -108,27 +109,29 @@ public:
     }
 
     void sapply_alloc( Function fun ) {
-        // call R function on each col
+        // call R function on each col/vec
         int icol, thisLen, sizeNew;
         for ( icol = 0; icol < nvec; icol++){
             thisLen = lengths[icol];
-            //NumericMatrix::Column dataCol = data(_, icol);
-            NumericMatrix::iterator colStart = data.begin() + (icol * allocLen);
-            // grab the range of data to operate on
+            NumericMatrix::iterator colStart = data.begin() + (icol * this->allocLen);
+            // grab the range of data for fun to operate on
             arma::vec dataVec(colStart, thisLen,  false);
-            // assign results to new vector and copy back
             NumericVector dataNew = fun(dataVec);
+            //Rf_PrintValue(wrap(dataVec));
+            //Rf_PrintValue(dataNew);
+            //Rf_PrintValue(wrap(allocLen));
+            //Rf_PrintValue(wrap(this->allocLen));
             // check size, grow as needed
             sizeNew = dataNew.size();
-            if ( sizeNew > allocLen) {
+            if ( sizeNew > this->allocLen) {
                 grow(sizeNew);
                 // recompute offsets
-                colStart = data.begin() + (icol * allocLen);
+                colStart = data.begin() + (icol * this->allocLen);
             }
             if ( sizeNew < thisLen) {
                 // if results are shorter, zero out this row
                 // not necessary, but prevents confusion viewing $data
-                std::fill( colStart, colStart + allocLen, 0);
+                std::fill( colStart, colStart + this->allocLen, 0);
             }
             // fill row of return matrix, starting at first non-zero elem
             std::copy( dataNew.begin(), dataNew.end(), colStart);
@@ -172,7 +175,6 @@ private:
         // always grow to at least minLen
         int end;
         int newLen = ceil( (float)minLen / (float)growBy) * growBy;
-        newLen = allocLen+growBy;
         // larger empty object to be filled
         NumericMatrix tmp(newLen, nvec);
         // fill by column
