@@ -4,7 +4,7 @@
 
 using namespace Rcpp ;
 // for user-supplied functions called by Xptr
-typedef void (*funcPtr)(arma::vec& x);
+typedef void (*funcPtr_armavec)(arma::vec& x);
 
 class RaggedArray {
 private:
@@ -38,96 +38,93 @@ public:
         return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy);
     }
 
-    void sapply_cpp( SEXP funPtrfun ) {
-        // call user-defined c++ function that returns external pointer to function that modifies arma::vec
-        // requires function arg and ret dimensions match
-        int icol, thisLen;
-        // grab the external pointer
-        XPtr<funcPtr> xpfun(funPtrfun);
-        funcPtr fun = *xpfun;
-        for ( icol = 0; icol < nvec; icol++){
-            thisLen = lengths[icol];
-            // column proxy
-            NumericMatrix::Column dataCol = data(_, icol);
-            arma::vec dataVec(dataCol.begin(), thisLen,  false);
-            // apply function, cast back to arma 
-            // modifies in-place
-            fun(dataVec);
-        }
-    }
-    void sapply_cpp_alloc( SEXP funPtrfun ) {
+    void sapply_cpp( SEXP funPtrfun, bool realloc=false  ) {
         // call user-defined c++ function that returns external pointer to function that modifies arma::vec
         // reallocate version
         int icol, thisLen, sizeNew;
-        XPtr<funcPtr> xpfun(funPtrfun);
-        funcPtr fun = *xpfun;
+        XPtr<funcPtr_armavec> xpfun(funPtrfun);
+        funcPtr_armavec fun = *xpfun;
         for ( icol = 0; icol < nvec; icol++){
             thisLen = lengths[icol];
             //NumericMatrix::Column dataCol = data(_, icol);
             NumericMatrix::iterator colStart = data.begin() + (icol * allocLen);
-            // grab the range of data to operate on
-            // we allow strict = false, resize is ok
-            arma::vec dataNew(colStart, thisLen,  false, false);
-            // assign results to new vector and copy back
-            fun(dataNew);
-            // check size, grow as needed
-            sizeNew = dataNew.size();
-            if ( sizeNew > allocLen) {
-                grow(sizeNew);
-                // recompute offsets
-                colStart = data.begin() + (icol * allocLen);
+            if (!realloc) {
+                // grab vec to operate on
+                // enforce no resize
+                arma::vec dataVec(colStart, thisLen, false);
+                // function assigns results
+                fun(dataVec);
+            } else {
+                // allow resize
+                arma::vec dataVec(colStart, thisLen, false, false);
+                fun(dataVec);
+                // check size, grow as needed
+                sizeNew = dataVec.size();
+                lengths[icol] = sizeNew;
+                if ( sizeNew > allocLen) {
+                    grow(sizeNew);
+                    // recompute offsets
+                    colStart = data.begin() + (icol * allocLen);
+                }
+                if ( sizeNew < thisLen) {
+                    // if results are shorter, zero out this row
+                    // not necessary, but prevents confusion viewing $data
+                    std::fill( colStart, colStart + allocLen, 0);
+                }
+                // fill row of return matrix
+                std::copy( dataVec.begin(), dataVec.end(), colStart);
             }
-            if ( sizeNew < thisLen) {
-                // if results are shorter, zero out this row
-                // not necessary, but prevents confusion viewing $data
-                std::fill( colStart, colStart + allocLen, 0);
-            }
-            // fill row of return matrix, starting at first non-zero elem
-            std::copy( dataNew.begin(), dataNew.end(), colStart);
-            lengths[icol] = sizeNew;
-        }
-    }
-    void sapply( Function fun ) {
-        // call R function on each col
-        int icol, thisLen;
-        for ( icol = 0; icol < nvec; icol++){
-            thisLen = lengths[icol];
-            // copy_aux_mem=false, reuse existing memory
-            // implies strict=true, arma enforces dim match
-            arma::vec dataVec(data.begin() + (icol * allocLen), thisLen, false);
-            // apply function, cast back to arma 
-            // assign modifies data in-place
-            // all the casting seems excessive, 
-            // but avoids memory copies / realloc
-            dataVec = as<arma::vec>(fun(dataVec));
         }
     }
 
-    void sapply_alloc( Function fun ) {
-        // call R function on each col/vec
+    void sapply_cpp_alloc( SEXP funPtrfun) {
+        // reallocate mem
+        sapply_cpp(funPtrfun, true);
+    }
+
+    void sapply( Function fun, bool realloc=false ) {
+        // call R function on each col
         int icol, thisLen, sizeNew;
         for ( icol = 0; icol < nvec; icol++){
             thisLen = lengths[icol];
             NumericMatrix::iterator colStart = data.begin() + (icol * this->allocLen);
-            // grab the range of data for fun to operate on
-            arma::vec dataVec(colStart, thisLen,  false);
-            NumericVector dataNew = fun(dataVec);
-            // check size, grow as needed
-            sizeNew = dataNew.size();
-            if ( sizeNew > this->allocLen) {
-                grow(sizeNew);
-                // recompute offsets
-                colStart = data.begin() + (icol * this->allocLen);
+            // copy_aux_mem=false, reuse existing memory
+            // implies strict=true, arma enforces dim match
+            arma::vec dataVec(colStart, thisLen, false);
+            if ( !realloc ) {
+                // modifies data in-place
+                // no size change allowed 
+                // all the casting seems excessive, 
+                // but avoids memory copies / realloc
+                dataVec = as<arma::vec>(fun(dataVec));
+            } else {
+                // permit memory reallocation based on size
+                // results into new object
+                NumericVector dataNew = fun(dataVec);
+                // check size, grow as needed
+                sizeNew = dataNew.size();
+                lengths[icol] = sizeNew;
+                if ( sizeNew > allocLen) {
+                    grow(sizeNew);
+                    // recompute offsets
+                    colStart = data.begin() + (icol * allocLen);
+                }
+                if ( sizeNew < thisLen) {
+                    // performance penalty?
+                    // if results are shorter, zero out row
+                    // not necessary, 
+                    // prevents confusion viewing $data
+                    std::fill(colStart, colStart+allocLen, 0);
+                }
+                // fill row of return matrix
+                std::copy( dataNew.begin(), dataNew.end(), colStart);
             }
-            if ( sizeNew < thisLen) {
-                // if results are shorter, zero out this row
-                // not necessary, but prevents confusion viewing $data
-                std::fill( colStart, colStart + this->allocLen, 0);
-            }
-            // fill row of return matrix, starting at first non-zero elem
-            std::copy( dataNew.begin(), dataNew.end(), colStart);
-            lengths[icol] = sizeNew;
         }
+    }
+
+    void sapply_alloc( Function fun ) {
+        // realloc=true
+        sapply(fun, true);
     }
 
     void append(  List fillVecs) {
