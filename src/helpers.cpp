@@ -92,19 +92,14 @@ public:
         int icol, thisLen;
         for ( icol = 0; icol < nvec; icol++){
             thisLen = lengths[icol];
-            // column proxy
-            NumericMatrix::Column dataCol = data(_, icol);
-            arma::vec dataVec(dataCol.begin(), thisLen,  false);
+            // copy_aux_mem=false, reuse existing memory
+            // implies strict=true, arma enforces dim match
+            arma::vec dataVec(data.begin() + (icol * allocLen), thisLen, false);
             // apply function, cast back to arma 
-            // modifies in-place
+            // assign modifies data in-place
+            // all the casting seems excessive, 
+            // but avoids memory copies / realloc
             dataVec = as<arma::vec>(fun(dataVec));
-            // verify return dim
-            // arma takes care of this.
-            /* 
-            if ( dataVec.size() != thisLen ) {
-                throw std::range_error("In sapply(fun): function argument and return value must have equal lengths");
-            }
-            */
         }
     }
 
