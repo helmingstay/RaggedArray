@@ -117,10 +117,6 @@ public:
             // grab the range of data for fun to operate on
             arma::vec dataVec(colStart, thisLen,  false);
             NumericVector dataNew = fun(dataVec);
-            //Rf_PrintValue(wrap(dataVec));
-            //Rf_PrintValue(dataNew);
-            //Rf_PrintValue(wrap(allocLen));
-            //Rf_PrintValue(wrap(this->allocLen));
             // check size, grow as needed
             sizeNew = dataNew.size();
             if ( sizeNew > this->allocLen) {
