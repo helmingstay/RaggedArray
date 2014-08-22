@@ -1,0 +1,32 @@
+## old
+   user  system elapsed
+126.167   8.904 135.120
+> aa = list(sample=timings.sample, sample.alloc=timings.sample.alloc, times10=timings.times10)
+> aa
+
+$sample
+     test replications elapsed relative user.self sys.self
+2 sampleC          100  22.954    1.000    22.787    0.164
+1  sample          100  33.123    1.443    33.057    0.060
+  user.child sys.child
+2          0         0
+1          0         0
+
+$sample.alloc
+     test replications elapsed relative user.self sys.self
+2 sampleC          100  24.184    1.000    24.013    0.167
+1  sample          100  32.966    1.363    32.320    0.636
+  user.child sys.child
+2          0         0
+1          0         0
+
+$times10
+  test replications elapsed relative user.self sys.self
+2    C          100   1.414    1.000     1.414    0.000
+1    R          100   8.266    5.846     7.520    0.740
+3  mat          100   8.821    6.238     2.573    6.244
+  user.child sys.child
+2          0         0
+1          0         0
+3          0         0
+
