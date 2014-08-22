@@ -4,7 +4,7 @@
 
 using namespace Rcpp ;
 // pointer to user-supplied function
-typedef NumericVector (*funcPtr)(arma::vec& x);
+typedef void (*funcPtr)(arma::vec& x);
 
 class RaggedArray {
 private:
@@ -50,16 +50,16 @@ public:
             NumericMatrix::iterator colStart = data.begin() + (icol * allocLen);
             // grab vec to operate on
             // enforce no resize
-            arma::vec dataVec(colStart, thisLen, false);
             if (!realloc) {
                 // function assigns results
-                dataVec = as<arma::vec>(fun(dataVec));
+                arma::vec dataVec(colStart, thisLen, false);
+                fun(dataVec);
             } else {
                 // allow resize
                 arma::vec dataVec(colStart, thisLen, false, false);
-                NumericVector dataNew = fun(dataVec);
+                fun(dataVec);
                 // check size, grow as needed
-                sizeNew = dataNew.size();
+                sizeNew = dataVec.size();
                 lengths[icol] = sizeNew;
                 if ( sizeNew > allocLen) {
                     grow(sizeNew);
@@ -70,9 +70,11 @@ public:
                     // if results are shorter, zero out this row
                     // not necessary, but prevents confusion viewing $data
                     std::fill( colStart, colStart + allocLen, 0);
+                    // just zero out excess elements??
+                    //std::fill( colStart+sizeNew, colStart + thisLen, 0);
                 }
                 // fill row of return matrix
-                std::copy( dataNew.begin(), dataNew.end(), colStart);
+                std::copy( dataVec.begin(), dataVec.end(), colStart);
             }
         }
     }

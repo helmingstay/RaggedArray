@@ -2,10 +2,10 @@
 // #include <RcppArmadillo.h>
 #include <RcppArmadilloExtensions/sample.h>
 using namespace Rcpp;
-typedef NumericVector (*funcPtr)(arma::vec& x);
+typedef void (*funcPtr)(arma::vec& x);
 
 // worker function to modify x in-place
-NumericVector myfunDefn(arma::vec& x) {
+void myfunDefn(arma::vec& x) {
     x = 10*x;
 }
 // followed by exported function to return external pointer
@@ -20,7 +20,7 @@ NumericVector myfun_times10R(NumericVector& x) {
     return x;
 }
 
-NumericVector myfun1Defn(arma::vec& x) {    
+void myfun1Defn(arma::vec& x) {    
     x = arma::sum(x);
 }
 
@@ -29,8 +29,7 @@ XPtr<funcPtr> myfun1_sum() {
     return(XPtr<funcPtr>(new funcPtr(&myfun1Defn)));
 }
 
-
-NumericVector defnSample(arma::vec& x) {    
+void defnSample(arma::vec& x) {    
     RNGScope scope;
     x = RcppArmadillo::sample(x, x.size(), true);
 }
@@ -42,7 +41,7 @@ XPtr<funcPtr> myfun_sample() {
 
 
 // grow x
-NumericVector defnSample1(arma::vec& x) {    
+void defnSample1(arma::vec& x) {    
     RNGScope scope;
     x = RcppArmadillo::sample(x, x.size()+1, true);
 }
