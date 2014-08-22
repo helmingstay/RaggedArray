@@ -14,11 +14,16 @@ expect_output( str(test.obj), "Rcpp_RaggedArray")
 test.obj$sapply(function(x) {2*x})
 
 expect_equal( test.obj$data[10,], c( 10, 8, 6))
-## error
+## test incorrect realloc: error
 expect_error( 
     test.obj$sapply(function(x) {c(mean(x), sd(x))}), 
-    info="sapply only valid with function that preserve data dimensions"
+    info="sapply not valid with function that changes x dimensions"
 )
+expect_error(
+    test.obj$sapply_cpp(myfun1_sum()),
+    info="sapply_cpp not valid with function that changes x dimensions"
+)
+
 test.obj$sapply_alloc(function(x) {c(mean(x), sd(x))})
 expect_equal( test.obj$data[1,], 6:8)
 expect_equal( test.obj$data[3,], c(0,0,0))
