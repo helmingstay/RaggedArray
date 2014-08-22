@@ -3,8 +3,8 @@
 #include <RcppArmadillo.h>
 
 using namespace Rcpp ;
-// for user-supplied functions called by Xptr
-typedef void (*funcPtr_armavec)(arma::vec& x);
+// pointer to user-supplied function
+typedef NumericVector (*funcPtr)(arma::vec& x);
 
 class RaggedArray {
 private:
@@ -38,28 +38,28 @@ public:
         return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy);
     }
 
-    void sapply_cpp( SEXP funPtrfun, bool realloc=false  ) {
+    void sapply_cpp_master( SEXP funPtrfun, bool realloc=false  ) {
         // call user-defined c++ function that returns external pointer to function that modifies arma::vec
         // reallocate version
         int icol, thisLen, sizeNew;
-        XPtr<funcPtr_armavec> xpfun(funPtrfun);
-        funcPtr_armavec fun = *xpfun;
+        XPtr<funcPtr> xpfun(funPtrfun);
+        funcPtr fun = *xpfun;
         for ( icol = 0; icol < nvec; icol++){
             thisLen = lengths[icol];
             //NumericMatrix::Column dataCol = data(_, icol);
             NumericMatrix::iterator colStart = data.begin() + (icol * allocLen);
+            // grab vec to operate on
+            // enforce no resize
+            arma::vec dataVec(colStart, thisLen, false);
             if (!realloc) {
-                // grab vec to operate on
-                // enforce no resize
-                arma::vec dataVec(colStart, thisLen, false);
                 // function assigns results
-                fun(dataVec);
+                dataVec = as<arma::vec>(fun(dataVec));
             } else {
                 // allow resize
                 arma::vec dataVec(colStart, thisLen, false, false);
-                fun(dataVec);
+                NumericVector dataNew = fun(dataVec);
                 // check size, grow as needed
-                sizeNew = dataVec.size();
+                sizeNew = dataNew.size();
                 lengths[icol] = sizeNew;
                 if ( sizeNew > allocLen) {
                     grow(sizeNew);
@@ -72,17 +72,21 @@ public:
                     std::fill( colStart, colStart + allocLen, 0);
                 }
                 // fill row of return matrix
-                std::copy( dataVec.begin(), dataVec.end(), colStart);
+                std::copy( dataNew.begin(), dataNew.end(), colStart);
             }
         }
     }
 
     void sapply_cpp_alloc( SEXP funPtrfun) {
-        // reallocate mem
-        sapply_cpp(funPtrfun, true);
+        // realloc=true
+        sapply_cpp_master(funPtrfun, true);
+    }
+    void sapply_cpp( SEXP funPtrfun) {
+        // realloc=false
+        sapply_cpp_master(funPtrfun, false);
     }
 
-    void sapply( Function fun, bool realloc=false ) {
+    void sapply_master(Function fun, bool realloc=false) {
         // call R function on each col
         int icol, thisLen, sizeNew;
         for ( icol = 0; icol < nvec; icol++){
@@ -124,7 +128,11 @@ public:
 
     void sapply_alloc( Function fun ) {
         // realloc=true
-        sapply(fun, true);
+        sapply_master(fun, true);
+    }
+    void sapply( Function fun ) {
+        // realloc=false
+        sapply_master(fun, false);
     }
 
     void append(  List fillVecs) {
