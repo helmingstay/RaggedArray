@@ -37,6 +37,7 @@ test.obj$sapply_cpp_alloc(myfun1_sum())
 expect_equal( test.obj$lengths, c(1,1,1))
 expect_true( all(test.obj$data[1,] >100))
 expect_true( all(test.obj$data[2,] ==0))
+expect_true( all(test.obj$data[-1,] ==0))
 #test.obj$sapply_cpp(myfun1())
 
 save.obj <- test.obj$serialize()

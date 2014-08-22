@@ -67,11 +67,9 @@ public:
                     colStart = data.begin() + (icol * allocLen);
                 }
                 if ( sizeNew < thisLen) {
-                    // if results are shorter, zero out this row
+                    // if results are shorter, zero out extra items
                     // not necessary, but prevents confusion viewing $data
-                    std::fill( colStart, colStart + allocLen, 0);
-                    // just zero out excess elements??
-                    //std::fill( colStart+sizeNew, colStart + thisLen, 0);
+                    std::fill( colStart+sizeNew, colStart + thisLen, 0);
                 }
                 // fill row of return matrix
                 std::copy( dataVec.begin(), dataVec.end(), colStart);
