@@ -5,6 +5,7 @@
 using namespace Rcpp ;
 // pointer to user-supplied function
 typedef void (*funcPtr)(arma::vec& x);
+typedef void (*funcPtrM)(arma::vec& x, const double y);
 
 class RaggedArray {
 private:
@@ -36,6 +37,71 @@ public:
     List serialize() {
         // return a list that constructor can use to regenerate object
         return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy);
+    }
+
+    // specializations of private sapply_master 
+    void sapply( Function fun ) {
+        // realloc=false, cppfun=false
+        sapply_master(fun, false, false);
+    }
+    void sapplyAlloc( Function fun ) {
+        // realloc=true, cppfun=false
+        sapply_master(fun, true, false);
+    }
+    void sapplyC( Function funPtrfun) {
+        // realloc=false, cppfun=true
+        sapply_master(funPtrfun, false, true);
+    }
+    void sapplyAllocC( Function funPtrfun) {
+        // realloc=true
+        sapply_master(funPtrfun, true, true);
+    }
+
+    void mapply( Function fun, NumericVector arg ) {
+        // realloc=false, cppfun=false
+        mapply_master(fun, arg, false, false);
+    }
+    void mapplyAlloc( Function fun, NumericVector arg ) {
+        // realloc=true, cppfun=false
+        mapply_master(fun, arg, true, false);
+    }
+    void mapplyC( Function funPtrfun, NumericVector arg) {
+        // realloc=false, cppfun=true
+        mapply_master(funPtrfun, arg, false, true);
+    }
+    void mapplyAllocC( Function funPtrfun, NumericVector arg) {
+        // realloc=true
+        mapply_master(funPtrfun, arg, true, true);
+    }
+    void append(  List fillVecs) {
+        // "append" fill oldmat w/  
+        // we will loop through cols, filling retmat in with the vectors in list
+        // then update retmat_size to index the next free
+        // newLenths isn't used, added for compatibility
+        std::size_t sizeOld, sizeAdd, sizeNew, icol;
+        NumericVector fillTmp;
+        // check that number of vectors match
+        if ( nvec != fillVecs.size()) {
+            throw std::range_error("In append(): dimension mismatch");
+        }
+        for (icol = 0; icol<nvec; icol++){
+            // vector to append
+            fillTmp = fillVecs[icol];
+            // compute lengths
+            sizeOld = lengths[icol];
+            sizeAdd = fillTmp.size();
+            sizeNew = sizeOld + sizeAdd;
+            // grow data matrix as needed
+            if ( sizeNew > allocLen) {
+                grow(sizeNew);
+            }
+            // iterator for col to fill
+            NumericMatrix::Column dataCol = data(_, icol);
+            // fill row of return matrix, starting at first non-zero elem
+            std::copy( fillTmp.begin(), fillTmp.end(), dataCol.begin() + sizeOld);
+            // update size of retmat
+            lengths[icol] = sizeNew;
+        }
     }
 
 
@@ -80,119 +146,79 @@ private:
     }
 
 
-    //Function ApplyFunction;
+    /// Apply R function, treat return value as arma::vec
+    /// Arg is arma::vec proxy of R object, update in-place
     void FunFromR(Function fun, arma::vec &arg) {
         arg =  as<arma::vec>(fun(arg));
     }
+    void FunFromR(Function fun, arma::vec &arg, double mapply_arg) {
+        arg =  as<arma::vec>(fun(arg, mapply_arg));
+    }
 
-
-    void sapply_master(Function infun, bool realloc) {
-    // apply R function to each vector, update in place
-    // realloc=T: allow vector size to change
+    void sapply_master(Function infun, bool realloc, bool cppfun) {
+    // apply user-supplied function infun to each vector, update in place
+    // realloc=true: allow function input and return dim to differ
+    // cppfun=false: infun is regular R function 
+    // cppfun=true: infun returns XPtr to C++ function,
+    //      infun takes arma::vec&, returns void
         std::size_t icol, thisLen;
+        funcPtr fun;
+        if (cppfun) {
+            SEXP funPtrfun = infun();
+            XPtr<funcPtr> xpfun(funPtrfun);
+            fun = *xpfun;
+        }
         for ( icol = 0; icol < nvec; icol++){
             thisLen = lengths[icol];
             NumericMatrix::iterator colStart = data.begin() + (icol * this->allocLen);
-            // copy_aux_mem=false, reuse existing memory
-            // implies strict=true, arma enforces dim match
-            if ( !realloc ) {
-                // modifies data in-place
-                // no size change allowed 
-                // all the casting seems excessive, 
-                // but avoids memory copies / realloc
-                arma::vec dataVec(colStart, thisLen, false);
-                FunFromR(infun, dataVec);
-                //dataVec = as<arma::vec>(fun(dataVec));
+            // copy_aux_mem=false: reuse existing memory, modify data in-place
+            // strict=true, arma enforces dim match, no size change allowed
+            arma::vec dataVec(colStart, thisLen, false, !realloc);
+            if(cppfun) {
+                fun(dataVec);
             } else {
-                // realloc
-                // cast to arma to allow in-place memory
-                arma::vec dataVec(colStart, thisLen, false, false);
-                //dataVec = as<arma::vec>(fun(dataVec));
                 FunFromR(infun, dataVec);
-                if ( dataVec.size() != thisLen) {
-                    grow_assign_sapply(icol, thisLen, dataVec, colStart);
-                }
+            }
+            if ( dataVec.size() != thisLen) {
+                // won't make it here unless realloc=true
+                // change dimension of data matrix, reset colStart
+                grow_assign_sapply(icol, thisLen, dataVec, colStart);
             }
         }
     }
 
-    void sapply_cpp_master( Function infun, bool realloc=false  ) {
-    //void sapply_cpp_master( SEXP funPtrfun, bool realloc=false  ) {
-    // call user-defined c++ function that returns external pointer to function that modifies arma::vec
-    // specialized into functions for realloc=T/F
+    void mapply_master(Function infun, NumericVector arg, bool realloc, bool cppfun) {
+    // apply user-supplied function infun to each vector, update in place
+    // realloc=true: allow function input and return dim to differ
+    // cppfun=false: infun is regular R function 
+    // cppfun=true: infun returns XPtr to C++ function,
+    //      infun takes arma::vec&, returns void
         std::size_t icol, thisLen;
-        SEXP funPtrfun = infun();
-        XPtr<funcPtr> xpfun(funPtrfun);
-        funcPtr fun = *xpfun;
+        double thisArg;
+        funcPtrM fun;
+        if (cppfun) {
+            SEXP funPtrfun = infun();
+            XPtr<funcPtrM> xpfun(funPtrfun);
+            fun = *xpfun;
+        }
         for ( icol = 0; icol < nvec; icol++){
             thisLen = lengths[icol];
-            NumericMatrix::iterator colStart = data.begin() + (icol * allocLen);
-            if (!realloc) {
-                // grab vec to operate on
-                // enforce no resize
-                arma::vec dataVec(colStart, thisLen, false);
-                // function assigns results
-                fun(dataVec);
+            thisArg = arg[icol];
+            NumericMatrix::iterator colStart = data.begin() + (icol * this->allocLen);
+            // copy_aux_mem=false: reuse existing memory, modify data in-place
+            // strict=true, arma enforces dim match, no size change allowed
+            arma::vec dataVec(colStart, thisLen, false, !realloc);
+            if(cppfun) {
+                fun(dataVec, thisArg);
             } else {
-                // allow resize
-                arma::vec dataVec(colStart, thisLen, false, false);
-                fun(dataVec);
-                if ( dataVec.size() != thisLen) {
-                    grow_assign_sapply(icol, thisLen, dataVec, colStart);
-                }
-                //grow_assign_sapply(icol, thisLen, dataVec, colStart);
+                FunFromR(infun, dataVec, thisArg);
+            }
+            if ( dataVec.size() != thisLen) {
+                // won't make it here unless realloc=true
+                // change dimension of data matrix, reset colStart
+                grow_assign_sapply(icol, thisLen, dataVec, colStart);
             }
         }
-    }
-            
-public:
-    // specialize the above for export 
-    void sapply_alloc( Function fun ) {
-        // realloc=true
-        sapply_master(fun, true);
-    }
-    void sapply( Function fun ) {
-        // realloc=false
-        sapply_master(fun, false);
-    }
-    void sapply_cpp_alloc( Function funPtrfun) {
-        // realloc=true
-        sapply_cpp_master(funPtrfun, true);
-    }
-    void sapply_cpp( Function funPtrfun) {
-        // realloc=false
-        sapply_cpp_master(funPtrfun, false);
     }
 
-    void append(  List fillVecs) {
-        // "append" fill oldmat w/  
-        // we will loop through cols, filling retmat in with the vectors in list
-        // then update retmat_size to index the next free
-        // newLenths isn't used, added for compatibility
-        std::size_t sizeOld, sizeAdd, sizeNew, icol;
-        NumericVector fillTmp;
-        // check that number of vectors match
-        if ( nvec != fillVecs.size()) {
-            throw std::range_error("In append(): dimension mismatch");
-        }
-        for (icol = 0; icol<nvec; icol++){
-            // vector to append
-            fillTmp = fillVecs[icol];
-            // compute lengths
-            sizeOld = lengths[icol];
-            sizeAdd = fillTmp.size();
-            sizeNew = sizeOld + sizeAdd;
-            // grow data matrix as needed
-            if ( sizeNew > allocLen) {
-                grow(sizeNew);
-            }
-            // iterator for col to fill
-            NumericMatrix::Column dataCol = data(_, icol);
-            // fill row of return matrix, starting at first non-zero elem
-            std::copy( fillTmp.begin(), fillTmp.end(), dataCol.begin() + sizeOld);
-            // update size of retmat
-            lengths[icol] = sizeNew;
-        }
-    }
 };
-

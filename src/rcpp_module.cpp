@@ -34,10 +34,14 @@ RCPP_MODULE(mod_ragged){
 
     .method("append", &RaggedArray::append , "Append a list of data vectors")
     .method("sapply", &RaggedArray::sapply , "Apply function to each col of data, modify in-place.  Dim of function arg and return value must match")
-    .method("sapply_alloc", &RaggedArray::sapply_alloc , "Apply function to each col of data.  Reallocate, update lengths.")
-    .method("sapply_cpp", &RaggedArray::sapply_cpp , "Apply user-supplied c++ function to each col of data.  Dim of function arg and return value must match")
-    .method("sapply_cpp_alloc", &RaggedArray::sapply_cpp_alloc , "Apply user-supplied c++ function to each col of data.  Reallocate, update lengths")
-    .method("serialize", &RaggedArray::serialize , "Return object as R list (which constructor will accept)")
+    .method("sapplyAlloc", &RaggedArray::sapplyAlloc , "Apply function to each col of data.  Reallocate, update lengths.")
+    .method("sapplyC", &RaggedArray::sapplyC , "Apply user-supplied c++ function to each col of data.  Dim of function arg and return value must match")
+    .method("sapplyAllocC", &RaggedArray::sapplyAllocC , "Apply user-supplied c++ function to each col of data.  Reallocate, update lengths")
+    .method("mapply", &RaggedArray::mapply , "Apply function to each col of data, modify in-place.  Takes numeric Dim of function arg and return value must match")
+    .method("mapplyAlloc", &RaggedArray::mapplyAlloc , "As in sapplyAlloc, multivariate version (see mapply).")
+    .method("mapplyC", &RaggedArray::mapplyC , "As in sapplyAlloc, multivariate version (see mapply).")
+    .method("mapplyAllocC", &RaggedArray::mapplyAllocC , "As in sapplyAlloc, multivariate version (see mapply).")
+    .method("serialize", &RaggedArray::serialize , "As in sapplyAlloc, multivariate version (see mapply).")
     ;
 }
 
