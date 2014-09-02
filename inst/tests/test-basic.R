@@ -20,30 +20,30 @@ expect_error(
     info="sapply not valid with function that changes x dimensions"
 )
 expect_error(
-    test.obj$sapply_cpp(myfun1_sum()),
+    test.obj$sapply_cpp(myfun1_sum),
     info="sapply_cpp not valid with function that changes x dimensions"
 )
 
 test.obj$sapply_alloc(function(x) {c(mean(x), sd(x))})
 expect_equal( test.obj$data[1,], 6:8)
+expect_true( all(test.obj$data[-1:-2,] ==0))
 expect_equal( test.obj$data[3,], c(0,0,0))
 #test.obj$sapply_alloc(function(x) {rnorm(x)})
 test.obj$sapply_alloc(function(x) {sample(x, 22, replace=T)})
 #test.obj$sapply_alloc(function(x) {sample(x, 22, replace=T)})
 expect_equal( test.obj$lengths, c(22, 22, 22))
 
-test.obj$sapply_cpp(myfun_times10())
+test.obj$sapply_cpp(myfun_times10)
 #browser()
 expect_true( 60 %in% test.obj$data[,1])
 expect_true( 70 %in% test.obj$data[,2])
 expect_true( 80 %in% test.obj$data[,3])
 test.obj$append(test.list)
-test.obj$sapply_cpp_alloc(myfun1_sum())
+test.obj$sapply_cpp_alloc(myfun1_sum)
 expect_equal( test.obj$lengths, c(1,1,1))
 expect_true( all(test.obj$data[1,] >100))
 expect_true( all(test.obj$data[2,] ==0))
 expect_true( all(test.obj$data[-1,] ==0))
-#test.obj$sapply_cpp(myfun1())
 
 save.obj <- test.obj$serialize()
 new.obj <- new(RaggedArray, save.obj)

@@ -14,6 +14,7 @@ XPtr<funcPtr> myfun_times10() {
     return(XPtr<funcPtr>(new funcPtr(&myfunDefn)));
 }
 
+
 // [[Rcpp::export]]
 NumericVector myfun_times10R(NumericVector& x) {
     x = 10*x;
