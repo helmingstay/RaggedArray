@@ -1,5 +1,0 @@
-require(devtools)
-#unload('.')
-#load_all('.')
-load_all('.', recompile=T)
-test('.')
