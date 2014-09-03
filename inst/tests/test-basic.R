@@ -1,6 +1,3 @@
-library(RaggedArray)
-## compile user function
-sourceCpp('userFun.cpp')
 ## nvec, allocLen, growBy
 test.obj = new(RaggedArray, 3, 10, 5)
 test.list <- list(1:5, 1:6, 1:7)

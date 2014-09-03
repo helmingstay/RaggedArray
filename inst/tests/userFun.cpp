@@ -3,6 +3,7 @@
 #include <RcppArmadilloExtensions/sample.h>
 using namespace Rcpp;
 typedef void (*funcPtr)(arma::vec& x);
+typedef void (*funcPtrM)(arma::vec& x, double y);
 
 // worker function to modify x in-place
 void myfunDefn(arma::vec& x) {

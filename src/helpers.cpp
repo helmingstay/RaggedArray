@@ -36,7 +36,7 @@ public:
 
     List serialize() {
         // return a list that constructor can use to regenerate object
-        return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy);
+        return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy, _["SerializedRaggedArray"] = true);
     }
 
     // specializations of private sapply_master 
