@@ -196,6 +196,9 @@ private:
         std::size_t icol, thisLen;
         double thisArg;
         funcPtrM fun;
+        if (nvec != arg.size() ) {
+            throw std::range_error("In mapply(): dimension mismatch");
+        }
         if (cppfun) {
             SEXP funPtrfun = infun();
             XPtr<funcPtrM> xpfun(funPtrfun);
