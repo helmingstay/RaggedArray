@@ -66,7 +66,7 @@ expect_error(
     test.obj1$mapplyAllocC(userFunSampleM, 10),
     info="mapply arg must have length == nvec"
 )
-.n <- 1e5
+.n <- 1e7
 .lengths <- .n:(.n+2)
 test.obj1$mapplyAllocC(userFunSampleM, .lengths)
 expect_true( all(test.obj1$lengths == .lengths))

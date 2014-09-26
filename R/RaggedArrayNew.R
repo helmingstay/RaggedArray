@@ -16,7 +16,9 @@
 #' RaggedArrayNew( nvec=3, allocLen=20, growBy=50)
 #' RaggedArrayNew( RaggedArrayNew( list(1:2, 1:10) )$serialize() )
 #' str(RaggedArrayNew( list( 1:2, 1:10), growBy=50))
-#' sourceCpp('inst/tests/userFun.cpp')
+#' print(getwd())
+#' print(dir())
+#' sourceCpp(system.file('tests', 'userFun.cpp', package='RaggedArray'))
 #' @family Ragged Array Docs
 RaggedArrayNew <- function(dataList=NULL,
     nvec=NULL, allocLen=NULL, growBy=NULL)

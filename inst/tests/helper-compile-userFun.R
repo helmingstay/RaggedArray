@@ -4,4 +4,6 @@ library(Rcpp)
 library(RcppArmadillo)
 ## change to package root directory,
 ## compile test examples of user Cpp functions
-sourceCpp('userFun.cpp')
+sourceCpp(
+    system.file( 'tests', 'userFun.cpp', package='RaggedArray')
+)
