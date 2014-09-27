@@ -41,8 +41,6 @@ RCPP_MODULE(mod_ragged){
     .method("mapplyAlloc", &RaggedArray::mapplyAlloc , "As in sapplyAlloc, multivariate version (see mapply).")
     .method("mapplyC", &RaggedArray::mapplyC , "As in sapplyAlloc, multivariate version (see mapply).")
     .method("mapplyAllocC", &RaggedArray::mapplyAllocC , "As in sapplyAlloc, multivariate version (see mapply).")
-    .method("serialize", &RaggedArray::serialize , "As in sapplyAlloc, multivariate version (see mapply).")
+    .method("serialize", &RaggedArray::serialize , "Return RaggedArray as an R list.  Can be passed back to constructor.")
     ;
 }
-
-
