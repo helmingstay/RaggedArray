@@ -36,7 +36,7 @@ public:
 
     List serialize() {
         // return a list that constructor can use to regenerate object
-        return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy, _["SerializedRaggedArray"] = true);
+        return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy,  _["nvec"] = nvec, _["SerializedRaggedArray"] = true);
     }
 
     // specializations of private sapply_master 
@@ -110,7 +110,8 @@ private:
     // worker function to reallocate data matrix
         // always grow by a multiple of growBy
         // always grow to at least minLen
-        std::size_t end, icol;
+        NumericMatrix::iterator oldCol, newCol;
+        std::size_t end, icol, jj;
         std::size_t newLen = ceil( (float)minLen / (float)growBy) * growBy;
         // larger empty object to be filled
         NumericMatrix tmp(newLen, nvec);
@@ -118,19 +119,17 @@ private:
         for (icol = 0; icol<nvec; icol++){
             end = lengths[icol];
             // grab iterators for new and old data structures
-            NumericMatrix::Column tmpCol = tmp(_, icol);
-            NumericMatrix::Column dataCol = data(_, icol);
-            // copy data from beginning to edge onto tmp
-            std::copy( dataCol.begin(), dataCol.begin() + end, tmpCol.begin());
+            oldCol = data.begin() + (icol * allocLen);
+            newCol = tmp.begin() + (icol * newLen);
+            std::copy( oldCol, oldCol + end, newCol);
         }
         data = tmp;
         allocLen = newLen;
     }
-    void grow_assign_sapply(std::size_t icol, std::size_t thisLen, arma::vec& dataVec, NumericMatrix::iterator& colStart) {
     // worker function shared by sapply and sapply_cpp
-        // check size, grow as needed
+    // check size, grow as needed
+    void grow_assign_sapply(std::size_t icol, std::size_t thisLen, arma::vec& dataVec, NumericMatrix::iterator& colStart) {
         std::size_t sizeNew = dataVec.size();
-        lengths[icol] = sizeNew;
         if ( sizeNew > allocLen) {
             grow(sizeNew);
             // recompute offsets
@@ -143,6 +142,7 @@ private:
         }
         // fill row of return matrix
         std::copy(dataVec.begin(), dataVec.end(), colStart);
+        lengths[icol] = sizeNew;
     }
 
 
@@ -223,5 +223,4 @@ private:
             }
         }
     }
-
 };
