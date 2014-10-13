@@ -24,7 +24,7 @@ public:
     // construct empty obj
     RaggedArray(std::size_t  nvec_, std::size_t allocLen_, std::size_t growBy_) : nvec(nvec_), allocLen(allocLen_), data(allocLen, nvec), lengths(nvec), growBy(growBy_){
     }
-    // construct obj from R List as returned by method asList()
+    // construct obj from R List as returned by method serialize()
     RaggedArray (List fromList) {
         // check names of fromList??
         growBy = fromList["growBy"];
@@ -37,6 +37,22 @@ public:
     List serialize() {
         // return a list that constructor can use to regenerate object
         return List::create(_["data"] = data, _["lengths"] = lengths, _["growBy"] = growBy,  _["nvec"] = nvec, _["SerializedRaggedArray"] = true);
+    }
+
+    
+    List dataList() {
+        // return data as a list, one element per column of data
+        List ret = List::create();
+        for (std::size_t icol = 0; icol < nvec; icol++) {
+            // create vector to put in list
+            NumericVector tmpvec( lengths[icol]);
+            // iterator for start of data
+            NumericMatrix::Column dataCol = data(_, icol);
+            // fill vec and push onto list
+            std::copy(tmpvec.begin(), tmpvec.end(), dataCol.begin());
+            ret.push_back(tmpvec);
+        }
+        return ret;
     }
 
     // specializations of private sapply_master 
@@ -193,6 +209,7 @@ private:
     // cppfun=false: infun is regular R function 
     // cppfun=true: infun returns XPtr to C++ function,
     //      infun takes arma::vec&, returns void
+    //?? change arg to NumericMatrix, add int nargs, pass a row at a time to cppfun, cppfun second arg should be a vector
         std::size_t icol, thisLen;
         double thisArg;
         funcPtrM fun;

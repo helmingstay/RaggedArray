@@ -42,5 +42,6 @@ RCPP_MODULE(mod_ragged){
     .method("mapplyC", &RaggedArray::mapplyC , "As in sapplyAlloc, multivariate version (see mapply).")
     .method("mapplyAllocC", &RaggedArray::mapplyAllocC , "As in sapplyAlloc, multivariate version (see mapply).")
     .method("serialize", &RaggedArray::serialize , "Return RaggedArray as an R list.  Can be passed back to constructor.")
+    .method("dataList", &RaggedArray::dataList , "Return data field as R list, one element per column of data, with element i having length = obj$lengths[i]. For use with vanilla R sapply.")
     ;
 }
