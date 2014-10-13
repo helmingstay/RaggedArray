@@ -17,7 +17,7 @@
 // along with Rcpp.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <RcppArmadillo.h>
-#include "helpers.cpp"
+#include "classdef.cpp"
 
 RCPP_MODULE(mod_ragged){
     //using namespace Rcpp ;
