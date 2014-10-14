@@ -43,14 +43,19 @@ public:
     List dataList() {
         // return data as a list, one element per column of data
         List ret = List::create();
+        NumericMatrix::iterator colStart;
+        std::size_t thislen;
+            //arma::vec dataVec(colStart, thisLen, false, !realloc);
         for (std::size_t icol = 0; icol < nvec; icol++) {
-            // create vector to put in list
-            NumericVector tmpvec( lengths[icol]);
+            thislen = lengths[icol];
             // iterator for start of data
-            NumericMatrix::Column dataCol = data(_, icol);
+            colStart = data.begin() + (icol * allocLen);
+            // create vector to put in list
+            arma::vec tmpvec(colStart, thislen, false);
+            
             // fill vec and push onto list
-            std::copy(tmpvec.begin(), tmpvec.end(), dataCol.begin());
-            ret.push_back(tmpvec);
+            //std::copy(dataCol, dataCol+thislen, tmpvec);
+            ret.push_back(wrap(tmpvec));
         }
         return ret;
     }

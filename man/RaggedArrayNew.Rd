@@ -26,7 +26,6 @@ See \code{\link{RaggedArrayClass}} for methods to manipulate object.
 \examples{
 ragged <- RaggedArrayNew( list( 1:5, 1:6, 1:7))
 all.equal(ragged, RaggedArrayNew( ragged$serialize() ))
-str(ragged)
 ragged$sapply(function(x) x*2)
 head(ragged$data)
 sourceCpp(system.file('examples', 'cpp', 'userSapplyFun.cpp', package='RaggedArray'))

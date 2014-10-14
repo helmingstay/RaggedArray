@@ -13,7 +13,7 @@
 #' @examples
 #' ragged <- RaggedArrayNew( list( 1:5, 1:6, 1:7))
 #' all.equal(ragged, RaggedArrayNew( ragged$serialize() ))
-#' str(ragged)
+## str(ragged)
 #' ragged$sapply(function(x) x*2)
 #' head(ragged$data)
 #' sourceCpp(system.file('examples', 'cpp', 'userSapplyFun.cpp', package='RaggedArray'))
@@ -38,7 +38,7 @@ RaggedArrayNew <- function(dataList=NULL,
             is.numeric(dataList$growBy) &&
             all( .nvec == c(dim(.data)[2], length(.lens)))
         ))  stop("dataList appears to be a serialized RaggedArray, but fails sanity checks.")
-        ret <- new(RaggedArray, dataList)
+        ret <- new('RaggedArray', dataList)
         return(ret)
     }
     if( .no.data && .no.specs) {
@@ -51,7 +51,7 @@ RaggedArrayNew <- function(dataList=NULL,
     if (is.null(growBy)) {
         growBy <- allocLen
     }
-    ret <- new(RaggedArray, nvec, allocLen, growBy)
+    ret <- new('RaggedArray', nvec, allocLen, growBy)
     if ( !.no.data ) {
         ret$append(dataList)
     }
