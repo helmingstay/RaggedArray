@@ -48,6 +48,7 @@ The final R call is:
 \seealso{
 \code{\link[Rcpp]{sourceCpp}} \code{\link{sapply}} \code{\link{mapply}}
 
-Other RaggedArray.Docs: \code{\link{RaggedArrayClass}}
+Other RaggedArray.Docs: \code{\link{RaggedArray}},
+  \code{\link{RaggedArrayClass}}
 }
 

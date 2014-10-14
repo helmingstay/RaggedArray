@@ -52,4 +52,13 @@
 #' @name RaggedArrayClass
 #' @family RaggedArray Docs
 #' @seealso \code{\link{Rcpp}} \code{\link{sapply}} \code{\link{mapply}} 
-NULL
+#'
+#' @name RaggedArray-class
+#' @rdname RaggedArray-class
+# #' @exportClass RaggedArray
+#' @export RaggedArray
+#' @field nvec
+#' @field lengths
+#' @field data
+#' @field growBy
+RaggedArray <- setRcppClass("RaggedArray")

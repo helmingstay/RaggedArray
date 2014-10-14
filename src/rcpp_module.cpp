@@ -19,7 +19,10 @@
 #include <RcppArmadillo.h>
 #include "classdef.cpp"
 
-RCPP_MODULE(mod_ragged){
+
+// RCPP_EXPOSED_CLASS_NODECL(RaggedArray)
+
+RCPP_MODULE(class_RaggedArray){
     //using namespace Rcpp ;
     class_<RaggedArray>("RaggedArray")
     // expose the default constructor
